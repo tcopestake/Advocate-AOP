@@ -40,7 +40,7 @@ It is recommended that you do this **after** your projects' autoloader(s) have a
 
 The parameter passed to the constructor is your "working directory" i.e. where your class files, aspects and maps will reside. In a typical PHP framework, for example, this may be your "app" directory.
 
-The AOP mapper will look for your maps in "**aop**/mapping.php" within the specified working directory.
+The AOP mapper will look for your maps in "__aop__/mapping.php" within the specified working directory.
 
 This file should return an array of maps as described in the introduction. For example:
 
@@ -50,4 +50,3 @@ This file should return an array of maps as described in the introduction. For e
         array('\Models\User', 'getUsername', '\Aspects\Monitors\User', 'gotUsername'),
         array('\Models\User', 'getUsername', '\Aspects\Monitors\Generic', 'somethingHappened'),
     );
-
