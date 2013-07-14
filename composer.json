@@ -1,0 +1,11 @@
+{
+    "name": "tcopestake/advocate-aop",
+    "description": "An experimental agnostic aspect-oriented pseudo-framework",
+    "require": {
+        "php": ">=5.4.0",
+        "nikic/php-parser": "dev-errorRecovery"
+    },
+    "autoload": {
+        "psr-0": {"Advocate": "src/"}
+    }
+}

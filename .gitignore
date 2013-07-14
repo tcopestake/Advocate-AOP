@@ -1,0 +1,6 @@
+compiled/
+vendor/
+app/
+composer.lock
+index.php
+syntax.php
