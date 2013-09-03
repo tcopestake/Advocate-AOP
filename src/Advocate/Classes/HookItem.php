@@ -9,14 +9,10 @@ class HookItem
     protected $hookMethod;
     protected $hookStatementNodes;
     
-    protected $uniqid;
-
     /* */
 
     public function __construct($hook_class_namespace, $hook_class, $hook_method)
     {
-        $this->uniqid = str_replace('.', '', uniqid('', true));
-        
         $this->hookNamespace = $hook_class_namespace;
         $this->hookClass = $hook_class;
         $this->hookMethod = $hook_method;
@@ -26,7 +22,7 @@ class HookItem
     
     public function getNameAsProperty()
     {
-        return 'aspect_'.$this->uniqid.strtolower(preg_replace('/[^0-9a-z]/i', '_', $this->hookNamespace.'\\'.$this->hookClass));
+        return 'aspect_'.strtolower(preg_replace('/[^0-9a-z]/i', '_', $this->hookNamespace.'\\'.$this->hookClass));
     }
     
     public function getClassNamespaced()

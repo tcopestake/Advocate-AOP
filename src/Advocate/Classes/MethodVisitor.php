@@ -32,7 +32,10 @@ class MethodVisitor extends \PHPParser_NodeVisitorAbstract
             
             // Match method pattern.
             
-            if($method_name == $this->methodPattern) {
+            if(
+                $method_name == $this->methodPattern
+                || preg_match('/'.str_replace('*', '(.*)', $this->methodPattern).'/', $method_name)
+            ) {
                 $this->methodRegistrar->registerMethodMatch($method_name);
             }
         }
