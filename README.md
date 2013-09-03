@@ -1,6 +1,6 @@
 # Advocate AOP
 
-An experimental agnostic aspect-oriented pseudo-framework.
+An experimental framework-agnostic environment for aspect-oriented programming in PHP.
 
 #### Requirements
 
