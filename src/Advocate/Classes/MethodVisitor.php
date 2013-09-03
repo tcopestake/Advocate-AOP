@@ -34,7 +34,7 @@ class MethodVisitor extends \PHPParser_NodeVisitorAbstract
             
             if(
                 $method_name == $this->methodPattern
-                || preg_match('/'.str_replace('*', '(.*)', $this->methodPattern).'/', $method_name)
+                || \Advocate\AOP::match($this->methodPattern, $method_name)
             ) {
                 $this->methodRegistrar->registerMethodMatch($method_name);
             }

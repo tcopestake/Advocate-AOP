@@ -169,9 +169,13 @@ class AOP
 
             list($hook_class_namespace, $hook_class_name) = $this->parseClassNamespace($hook_class);
 
-            // Class match.
+            // Class match. Automatically disqualify aspects.
 
-            if($class == $class_pattern) {
+            if(
+                !preg_match('/^aspects\\\/ism', $class)
+                && ($class == $class_pattern
+                || \Advocate\AOP::match($class_pattern, $class))
+            ) {
                 $matches = $this->parser->methodMatch($method_pattern);
 
                 foreach($matches as $match) {
@@ -217,5 +221,23 @@ class AOP
         }
         
         return $class_path;
+    }
+    
+    //
+    
+    public static function match($pattern, $subject)
+    {
+        $parts = explode('*', $pattern);
+        $new_parts = array();
+
+        foreach ($parts as $part) {
+            $new_parts[] = preg_quote($part);
+        }
+
+        $pattern = implode('(.*)', $new_parts);
+        
+        return ($pattern)
+                ? preg_match("/{$pattern}/", $subject)
+                : false;
     }
 }
