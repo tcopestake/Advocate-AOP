@@ -1,16 +1,18 @@
 <?php
 
-namespace Advocate\Classes;
+namespace Advocate\Classes\Joins;
 
-class HookCollection
+class JoinCollection
 {
     protected $targetNamespace;
     protected $targetClass;
-    protected $hooks = array();
+    protected $joins = array();
     
     public function setTargetNamespace($namespace)
     {
         $this->targetNamespace = $namespace;
+        
+        return $this;
     }
         
     public function getTargetNamespace()
@@ -21,6 +23,8 @@ class HookCollection
     public function setTargetClass($class)
     {
         $this->targetClass = $class;
+        
+        return $this;
     }
     
     public function getTargetClass()
@@ -28,23 +32,23 @@ class HookCollection
         return $this->targetClass;
     }
     
-    public function setHook($target_method, $hook_class_namespace, $hook_class, $hook_method)
+    public function setJoin($targetMethod, $joinClassNamespace, $joinClass, $joinMethod)
     {
-        if(!isset($this->hooks[$target_method])) {
-            $this->hooks[$target_method] = array();
+        if(!isset($this->joins[$targetMethod])) {
+            $this->joins[$targetMethod] = array();
         }
         
-        $this->hooks[$target_method][] = new HookItem($hook_class_namespace, $hook_class, $hook_method);
+        $this->joins[$targetMethod][] = new JoinItem($joinClassNamespace, $joinClass, $joinMethod);
     }
     
-    public function getHooks()
+    public function getJoins()
     {
-        return $this->hooks;
+        return $this->joins;
     }
     
-    public function hasHooks()
+    public function hasJoins()
     {
-        return (count($this->hooks) > 0);
+        return (count($this->joins) > 0);
     }
     
     /* */

@@ -1,14 +1,23 @@
 <?php
 
-namespace Advocate\Classes;
+namespace Advocate\Classes\Parser\Visitors;
 
 class ClassRewriteVisitor extends \PHPParser_NodeVisitorAbstract
 {
-    protected $hookCollection;
-    protected $hooks;
+    protected $joinCollection;
+    protected $joins;
     
     protected $classNode;
     protected $constructorNode;
+    
+    /* */
+    
+    public function reset()
+    {
+        $this->constructorNode = null;
+    }
+    
+    /* */
 
     public function enterNode(\PHPParser_Node $node)
     {
@@ -19,25 +28,25 @@ class ClassRewriteVisitor extends \PHPParser_NodeVisitorAbstract
                 $this->constructorNode = $node;
             }
             
-            if(isset($this->hooks[$node->name]))
+            if(isset($this->joins[$node->name]))
             {
-                $closure_use_params = array();
+                $closureUseParams = array();
                 
                 foreach($node->params as $param) {
-                    $closure_use_params[] = new \PHPParser_Node_Expr_ClosureUse($param->name, $param->byRef);
+                    $closureUseParams[] = new \PHPParser_Node_Expr_ClosureUse($param->name, $param->byRef);
                 }
 
                 // 
                 
-                $call_statements = array();
+                $callStatements = array();
                 
-                foreach($this->hooks[$node->name] as $hook) {
-                    $call_statements[] = new \PHPParser_Node_Expr_MethodCall(
+                foreach($this->joins[$node->name] as $join) {
+                    $callStatements[] = new \PHPParser_Node_Expr_MethodCall(
                         new \PHPParser_Node_Expr_PropertyFetch(
                             new \PHPParser_Node_Expr_Variable('this'),
-                            $hook->getNameAsProperty()
+                            $join->getNameAsProperty()
                         ),
-                        $hook->getMethod()
+                        $join->getMethod()
                     );
                 }
 
@@ -47,20 +56,20 @@ class ClassRewriteVisitor extends \PHPParser_NodeVisitorAbstract
                  * 
                  */
 
-                $return_variable = new \PHPParser_Node_Expr_Variable('return');
+                $returnVariable = new \PHPParser_Node_Expr_Variable('return');
 
                 $node->stmts = array_merge(
                     array(
-                        $this->wrapInEnclosure($node->stmts, array(), $closure_use_params),
+                        $this->wrapInEnclosure($node->stmts, array(), $closureUseParams),
                         new \PHPParser_Node_Expr_Assign(
-                            $return_variable,
+                            $returnVariable,
                             new \PHPParser_Node_Expr_FuncCall(
                                 new \PHPParser_Node_Expr_Variable('enclosure')
                             )
                         )
                     ),
-                    $call_statements,
-                    array($this->makeReturn($return_variable))
+                    $callStatements,
+                    array($this->makeReturn($returnVariable))
                 );
             }
         }
@@ -73,43 +82,43 @@ class ClassRewriteVisitor extends \PHPParser_NodeVisitorAbstract
     {
         // New constructor code.
         
-        $classes_loaded = array();
+        $classesLoaded = array();
         
-        $property_statements = array();        
-        $property_assignments = array();
+        $propertyStatements = array();        
+        $propertyAssignments = array();
 
-        foreach($this->hookCollection->getHooks() as $hook_list) {
-            foreach($hook_list as $hook) {
-                $hook_class = $hook->getClass();
+        foreach($this->joinCollection->getJoins() as $joinList) {
+            foreach($joinList as $join) {
+                $joinClass = $join->getClass();
                 
-                if(isset($classes_loaded[$hook_class])) {
+                if(isset($classesLoaded[$joinClass])) {
                     continue;
                 }
                 
                 // 
 
-                $aspect_property = $hook->getNameAsProperty();
+                $aspectProperty = $join->getNameAsProperty();
                 
                 // Create property.
                 
-                $property_statements[] = new \PHPParser_Node_Stmt_Property(
+                $propertyStatements[] = new \PHPParser_Node_Stmt_Property(
                     \PHPParser_Node_Stmt_Class::MODIFIER_PROTECTED,
-                    array(new \PHPParser_Node_Stmt_PropertyProperty($aspect_property))
+                    array(new \PHPParser_Node_Stmt_PropertyProperty($aspectProperty))
                 );
 
                 // Create assignment for constructor.
                 
-                $property_assignments[] = new \PHPParser_Node_Expr_Assign(
+                $propertyAssignments[] = new \PHPParser_Node_Expr_Assign(
                     new \PHPParser_Node_Expr_PropertyFetch(
                         new \PHPParser_Node_Expr_Variable('this'),
-                        $aspect_property
+                        $aspectProperty
                     ),
                     new \PHPParser_Node_Expr_New(
-                        new \PHPParser_Node_Name($hook->getClassNamespaced())
+                        new \PHPParser_Node_Name($join->getClassNamespaced())
                     )
                 );
                 
-                $classes_loaded[$hook_class] = true;
+                $classesLoaded[$joinClass] = true;
             }
         }
         
@@ -119,7 +128,7 @@ class ClassRewriteVisitor extends \PHPParser_NodeVisitorAbstract
          * 
          */
         
-        if(is_null($this->constructorNode)) {
+        if (is_null($this->constructorNode)) {
             $this->constructorNode = new \PHPParser_Node_Stmt_ClassMethod('__construct');
             
             $this->classNode->stmts[] = $this->constructorNode;
@@ -130,7 +139,7 @@ class ClassRewriteVisitor extends \PHPParser_NodeVisitorAbstract
              * 
              */
             
-            $parent_call = array(
+            $parentCall = array(
                 new \PHPParser_Node_Expr_Assign(
                     new \PHPParser_Node_Expr_Variable('parent'),
                     new \PHPParser_Node_Expr_FuncCall(
@@ -184,20 +193,19 @@ class ClassRewriteVisitor extends \PHPParser_NodeVisitorAbstract
                 ),
             );
 
-            $this->constructorNode->stmts = $parent_call;
+            $this->constructorNode->stmts = $parentCall;
             
         } else {
-            
-            $closure_use_params = array();
+            $closureUseParams = array();
 
             foreach($this->constructorNode->params as $param) {
-                $closure_use_params[] = new \PHPParser_Node_Expr_ClosureUse($param->name, $param->byRef);
+                $closureUseParams[] = new \PHPParser_Node_Expr_ClosureUse($param->name, $param->byRef);
             }
             
             // 
             
             $this->constructorNode->stmts = array(
-                $this->wrapInEnclosure($this->constructorNode->stmts, array(), $closure_use_params),
+                $this->wrapInEnclosure($this->constructorNode->stmts, array(), $closureUseParams),
                     new \PHPParser_Node_Expr_FuncCall(
                         new \PHPParser_Node_Expr_Variable('enclosure')
                     )
@@ -206,22 +214,22 @@ class ClassRewriteVisitor extends \PHPParser_NodeVisitorAbstract
         
         // Insert statements.
 
-        if(!empty($property_statements)) {
-            $this->classNode->stmts = array_merge($property_statements, $this->classNode->stmts);
+        if(!empty($propertyStatements)) {
+            $this->classNode->stmts = array_merge($propertyStatements, $this->classNode->stmts);
         }
         
-        if(!empty($property_assignments)) {
-            $this->constructorNode->stmts = array_merge($property_assignments, $this->constructorNode->stmts);
+        if(!empty($propertyAssignments)) {
+            $this->constructorNode->stmts = array_merge($propertyAssignments, $this->constructorNode->stmts);
         }
     }
     
     // 
     
-    public function setHookCollection($hook_collection)
+    public function setJoinCollection($joinCollection)
     {
-        $this->hookCollection = $hook_collection;
+        $this->joinCollection = $joinCollection;
         
-        $this->hooks = $this->hookCollection->getHooks();
+        $this->joins = $this->joinCollection->getJoins();
     }
 
     // 
@@ -235,10 +243,10 @@ class ClassRewriteVisitor extends \PHPParser_NodeVisitorAbstract
     
     protected function wrapInEnclosure($statements, $parameters = array(), $uses = array())
     {
-        $enclosure_variable = new \PHPParser_Node_Expr_Variable('enclosure');
+        $enclosureVariable = new \PHPParser_Node_Expr_Variable('enclosure');
 
         $assign = new \PHPParser_Node_Expr_Assign(
-            $enclosure_variable,
+            $enclosureVariable,
             new \PHPParser_Node_Expr_Closure(
                 array(
                     'stmts'     => $statements,
@@ -253,10 +261,10 @@ class ClassRewriteVisitor extends \PHPParser_NodeVisitorAbstract
         return $assign;
     }
     
-    protected function makeReturn($return_variable)
+    protected function makeReturn($returnVariable)
     {
         return new \PHPParser_Node_Stmt_Return(
-            $return_variable
+            $returnVariable
         );
     }
 }

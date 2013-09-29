@@ -6,39 +6,156 @@ class AOP
 {
     protected $interceptedAutoloaders = array();
     
-    protected $hooks = array();
+    protected $joins = array();
     
     protected $parser;
     
     protected $workingDirectory;
+    protected $storageDirectory;
+    
+    protected $mapLocation;
+    
+    protected $classResolvers = array();
     
     // 
     
+    public function setStorageDirectory($directory)
+    {
+        if (!is_dir($directory = realpath($directory))) {
+            throw new \Advocate\Exceptions\Storage\InvalidStorageDirectory('The specified storage directory is invalid.');
+        }
+        
+        $this->storageDirectory = $directory;
+        
+        return $this;
+    }
+    
+    public function getStorageDirectory()
+    {
+        return $this->storageDirectory;
+    }
+    
+    // 
+    
+    public function setWorkingDirectory($directory)
+    {
+        $this->workingDirectory = $directory;
+        
+        return $this;
+    }
+    
     public function getWorkingDirectory()
     {
-        return $this->workingDirectory();
+        return $this->workingDirectory;
+    }
+    
+    //
+    
+    public function setParser($parser)
+    {
+        $this->parser = $parser;
+
+        return $this;
     }
     
     // 
 
-    public function __construct($directory)
-    {
-        $this->parser = new Classes\Parser;
+    public function __construct(
+        \Advocate\Interfaces\Parser\ParserInterface $parser = null,
+        $directory = null
+    ) {
+        if (is_null($parser)) {
+            $parser = new \Advocate\Classes\Parser\BasicParser;
+        }
+
+        $this->setParser($parser);
         
-        $this->workingDirectory = $directory;
+        // 
+        
+        if ($directory) {
+            $this->setWorkingDirectory($directory);
+        }
     }
     
     /* */
     
-    public function init()
+    public function setMapLocation($mappingFile)
     {
-        $this->loadMapping();
+        $mappingFile = realpath($mappingFile);
         
-        // Load mapping.
+        if (!is_file($mappingFile)) {
+            throw new \Advocate\Exceptions\Mapping\InvalidMappingFile('Mapping file parameter does not point to a valid file.');
+        }
         
+        $this->mapLocation = $mappingFile;
         
         // 
         
+        return $this;
+    }
+    
+    /* */
+    
+    public function addClassResolver(
+        \Advocate\Interfaces\ClassResolver\ClassResolverInterface $resolver
+    ) {
+        if ($resolver) {
+            $this->classResolvers[] = $resolver;
+        }
+        
+        return $this;
+    }
+    
+    protected function resolveClassPath($class)
+    {
+        $classPath = null;
+        
+        /*
+         * Iterate through resolvers, which will return the class
+         * path if they're able to locate it.
+         * 
+         */
+        
+        foreach ($this->classResolvers as $resolver) {
+            $classPath = $resolver->resolve($class);
+            
+            if ($classPath && is_file($classPath = realpath($classPath))) {
+                break;
+            }
+        }
+        
+        return $classPath;
+    }
+    
+    /* */
+    
+    protected function toCompiledPath($classLocation)
+    {
+        $classLocation = preg_replace('/[^0-9a-z\\.\\/\\\]/i', '_', $classLocation);
+
+        return $this->storageDirectory.'/aop/compiled/'.$classLocation;
+    }
+    
+    /* */
+    
+    public function startUp($mappingFile = null)
+    {
+        // Set mapping file, if applicable.
+        
+        if (is_string($mappingFile)) {
+            $this->setMapLocation($mappingFile);
+        }
+
+        // Load mapping.
+
+        $this->loadMapping();
+
+        /*
+         * Intercept autoloaders. This is necessary to catch
+         * calls to methods within classes and join aspects if applicable.
+         * 
+         */
+
         $this->interceptedAutoloaders = spl_autoload_functions();
 
         foreach($this->interceptedAutoloaders as $autoloader) {
@@ -46,53 +163,54 @@ class AOP
         }
         
         // 
-        
-        $aop_container = $this;
 
-        $aop_autoloader = function($class) use ($aop_container)
+        $aopAutoloader = function($class)
         {
-            // Parse file location.
-
-            $class_path = $this->findClassFile($class);
+            // Resolve class path.
             
-            if(file_exists(($class_location = $this->workingDirectory.'/'.$class_path))) {
-                
+            $classPath = $this->resolveClassPath($class);
+            
+            // 
+
+            if ($classPath) {
+                $compiledClassLocation = $this->toCompiledPath($classPath);
+
                 /*
                  * Load the compiled code if it's newer than
                  * both the target class and the aspect map.
                  * 
                  */
-                
+
                 if(
-                    file_exists(($compiled_location = $this->workingDirectory.'/compiled/'.$class_path))
-                    && filemtime($compiled_location) > filemtime($class_location)
-                    && filemtime($compiled_location) > $this->mapLastModified
+                    is_file($compiledClassLocation)
+                    && filemtime($compiledClassLocation) > filemtime($classPath)
+                    && filemtime($compiledClassLocation) > $this->mapLastModified
                 ) {
-                    $include_path = $compiled_location;
+                    $includePath = $compiledClassLocation;
                 } else {
-                    $code = file_get_contents($class_location);
+                    $code = file_get_contents($classPath);
 
                     $this->parser->setCode($code);
 
-                    // Look for method hook matches.
+                    // Match join points.
 
-                    $hooks = $aop_container->matchHooks($class);
+                    $joins = $this->matchJoins($class);
                 }
             }
 
             // 
-
-            if(isset($hooks) && $hooks instanceof Classes\HookCollection && $hooks->hasHooks()) {
-                $include_path = $aop_container->compileHooks($compiled_location, $hooks);
+            
+            if (isset($joins) && $joins instanceof \Advocate\Classes\Joins\JoinCollection && $joins->hasJoins()) {
+                $includePath = $this->compileJoins($compiledClassLocation, $joins);
             }
             
-            if(isset($include_path) && file_exists($include_path)) {
-                require($include_path);
+            if (isset($includePath) && $includePath) {
+                require $includePath;
             } else {
-                foreach($aop_container->getAutoloaders() as $autoloader) {
-                    call_user_func_array($autoloader, array($class));
+                foreach($this->getAutoloaders() as $autoloader) {
+                    $autoloader($class);
 
-                    if(class_exists($class, false)) {
+                    if (class_exists($class, false)) {
                         break;
                     }
                 }
@@ -101,7 +219,7 @@ class AOP
 
         // 
 
-        spl_autoload_register($aop_autoloader, true, true);
+        spl_autoload_register($aopAutoloader, true, true);
     }
     
     /* */
@@ -110,17 +228,19 @@ class AOP
     
     protected function loadMapping()
     {
-        $this->mapLocation = $this->workingDirectory.'/aop/mapping.php';
-        
-        if(!file_exists($this->mapLocation)) {
-            return false;
+        if (empty($this->mapLocation)) {
+            throw new \Advocate\Exceptions\Mapping\MappingNotConfigured('No valid mapping file has been set.');
         }
         
-        // 
+        /*
+         * Get the last time the map was modified. This is needed to check
+         * whether it's necessary to rebuild cached classes.
+         * 
+         */
         
         $this->mapLastModified = filemtime($this->mapLocation);
         
-        // 
+        // Load map data.
         
         $map_array = require($this->mapLocation);
         
@@ -131,7 +251,7 @@ class AOP
                 $class_pattern = substr($class_pattern, 1);
             }
 
-            $this->hooks[] = $map;
+            $this->joins[] = $map;
         }
     }
     
@@ -144,49 +264,47 @@ class AOP
 
     /* */
     
-    public function compileHooks($compile_path, $hooks)
+    public function compileJoins($compilePath, $joins)
     {
-        return $this->parser->compileHooks($compile_path, $hooks);
+        return $this->parser->compileJoins($compilePath, $joins);
     }
     
     /* */
     
     /* */
     
-    public function matchHooks($class)
+    protected function matchJoins($class)
     {
-        list($class_namespace, $class_name) = $this->parseClassNamespace($class);
+        list($classNamespace, $className) = $this->parseClassNamespace($class);
 
         // 
 
-        $hook_collection = new Classes\HookCollection;
-        
-        $hook_collection->setTargetNamespace($class_namespace);
-        $hook_collection->setTargetClass($class_name);
+        $joinCollection = (new \Advocate\Classes\Joins\JoinCollection)
+            ->setTargetNamespace($classNamespace)
+            ->setTargetClass($className);
 
-        foreach($this->hooks as $hook) {
-            list($class_pattern, $method_pattern, $hook_class, $hook_method) = $hook;
+        foreach($this->joins as $join) {
+            list($classPattern, $methodPattern, $joinClass, $joinMethod) = $join;
 
-            list($hook_class_namespace, $hook_class_name) = $this->parseClassNamespace($hook_class);
+            list($joinClassNamespace, $joinClassName) = $this->parseClassNamespace($joinClass);
 
-            // Class match. Automatically disqualify aspects.
-
+            // Class match
+            
             if(
-                !preg_match('/^aspects\\\/ism', $class)
-                && ($class == $class_pattern
-                || \Advocate\AOP::match($class_pattern, $class))
+                $class == $classPattern
+                || $this->patternMatch($classPattern, $class)
             ) {
-                $matches = $this->parser->methodMatch($method_pattern);
+                $matches = $this->parser->methodMatch($methodPattern);
 
                 foreach($matches as $match) {
-                    $hook_collection->setHook($match, $hook_class_namespace, $hook_class_name, $hook_method);
+                    $joinCollection->setJoin($match, $joinClassNamespace, $joinClassName, $joinMethod);
                 }
             }
         }
 
         // 
 
-        return $hook_collection;
+        return $joinCollection;
     }
     
     // 
@@ -204,30 +322,13 @@ class AOP
         
         return array($namespace, $class);
     }
-    
-    protected function findClassFile($class)
-    {
-        $class_path = str_replace('\\', '/', $class);
 
-        $class_path = $class.'.php';
-        
-        /*
-         * Try the /aop directory.
-         * 
-         */
-        
-        if(!file_exists($this->workingDirectory.'/'.$class_path)) {
-            $class_path = 'aop/'.$class.'.php';
-        }
-        
-        return $class_path;
-    }
-    
     //
     
-    public static function match($pattern, $subject)
+    protected function patternMatch($pattern, $subject)
     {
         $parts = explode('*', $pattern);
+        
         $new_parts = array();
 
         foreach ($parts as $part) {

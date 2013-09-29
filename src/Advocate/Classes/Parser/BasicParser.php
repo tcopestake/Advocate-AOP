@@ -1,8 +1,8 @@
 <?php
 
-namespace Advocate\Classes;
+namespace Advocate\Classes\Parser;
 
-class Parser
+class BasicParser implements \Advocate\Interfaces\Parser\ParserInterface
 {
     protected $lexer;
     protected $parser;
@@ -12,10 +12,7 @@ class Parser
     
     protected $code;
     protected $syntaxTree;
-    
-    protected $hookCode;
-    protected $hookSyntaxTree;
-    
+
     protected $methodMatches = array();
     
     /* */
@@ -25,10 +22,10 @@ class Parser
         $this->lexer = new \PHPParser_Lexer;
         
         $this->parser = new \PHPParser_Parser($this->lexer);
-
-        $this->methodVisitor = new MethodVisitor;
         
-        $this->classRewriteVisitor = new ClassRewriteVisitor;
+        $this->methodVisitor = new \Advocate\Classes\Parser\Visitors\MethodVisitor;
+        
+        $this->classRewriteVisitor = new \Advocate\Classes\Parser\Visitors\ClassRewriteVisitor;
     }
     
     /* */
@@ -44,7 +41,7 @@ class Parser
     {
         $this->code = $code;
         
-        $this->syntaxTree = $this->parser->parse($this->code);
+        $this->syntaxTree = $this->parser->parse($code);
     }
     
     /* */
@@ -63,18 +60,15 @@ class Parser
     
     /* */
     
-    public function parseHooks(HookCollection $hook_collection)
-    {
-        // 
-    }
-    
     /* */
     
-    public function compileHooks($compile_path, HookCollection $hook_collection)
+    public function compileJoins($compilePath, \Advocate\Classes\Joins\JoinCollection $joinCollection)
     {
         // 
 
-        $this->classRewriteVisitor->setHookCollection($hook_collection);
+        $this->classRewriteVisitor->reset();
+
+        $this->classRewriteVisitor->setJoinCollection($joinCollection);
 
         $traverser = new \PHPParser_NodeTraverser;
 
@@ -86,26 +80,26 @@ class Parser
         
         $printer = new \PHPParser_PrettyPrinter_Default;
 
-        $compile_location = dirname($compile_path);
-        
-        if(!file_exists($compile_location.'/')) {
-            mkdir($compile_location, 0777, true);
+        $compileLocation = dirname($compilePath);
+
+        if(!file_exists($compileLocation.'/')) {
+            mkdir($compileLocation, 0777, true);
         }
         
-        file_put_contents($compile_path, '<?php '.$printer->prettyPrint($this->syntaxTree));
+        file_put_contents($compilePath, '<?php '.$printer->prettyPrint($this->syntaxTree));
 
-        return $compile_path;
+        return $compilePath;
     }
     
     /* */
 
-    public function methodMatch($method_pattern)
+    public function methodMatch($methodPattern)
     {
         $this->resetMethodMatches();
 
         $this->methodVisitor->setMethodRegistrar($this);
 
-        $this->methodVisitor->setMethodPattern($method_pattern);
+        $this->methodVisitor->setMethodPattern($methodPattern);
         
         // 
 
