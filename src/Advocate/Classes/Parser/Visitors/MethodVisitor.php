@@ -58,7 +58,7 @@ class MethodVisitor extends \PHPParser_NodeVisitorAbstract
         $pattern = implode('(.*)', $new_parts);
         
         return ($pattern)
-                ? preg_match("/{$pattern}/", $subject)
+                ? preg_match("/^{$pattern}$/ism", $subject)
                 : false;
     }
 }

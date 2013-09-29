@@ -285,7 +285,19 @@ class AOP
 
         foreach($this->joins as $join) {
             list($classPattern, $methodPattern, $joinClass, $joinMethod) = $join;
-
+            
+            if (isset($join['before'])) {
+                $isBefore = $join['before'] ? true : false;
+            } else {
+                $isBefore = false;
+            }
+            
+            if (isset($join['after'])) {
+                $isAfter = $join['after'] ? true : false;
+            } else {
+                $isAfter = false;
+            }
+            
             list($joinClassNamespace, $joinClassName) = $this->parseClassNamespace($joinClass);
 
             // Class match
@@ -297,7 +309,14 @@ class AOP
                 $matches = $this->parser->methodMatch($methodPattern);
 
                 foreach($matches as $match) {
-                    $joinCollection->setJoin($match, $joinClassNamespace, $joinClassName, $joinMethod);
+                    $joinCollection->setJoin(
+                        $match,
+                        $joinClassNamespace,
+                        $joinClassName,
+                        $joinMethod,
+                        $isBefore,
+                        $isAfter
+                    );
                 }
             }
         }
@@ -338,7 +357,7 @@ class AOP
         $pattern = implode('(.*)', $new_parts);
         
         return ($pattern)
-                ? preg_match("/{$pattern}/", $subject)
+                ? preg_match("/^{$pattern}$/ism", $subject)
                 : false;
     }
 }

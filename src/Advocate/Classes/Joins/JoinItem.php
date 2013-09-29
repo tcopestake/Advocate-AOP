@@ -9,13 +9,36 @@ class JoinItem
     protected $joinMethod;
     protected $joinStatementNodes;
     
+    protected $joinIsBefore;
+    protected $joinIsAfter;
+    
     /* */
 
-    public function __construct($joinClassNamespace, $joinClass, $joinMethod)
-    {
+    public function __construct(
+        $joinClassNamespace,
+        $joinClass,
+        $joinMethod,
+        $isBefore,
+        $isAfter
+    ) {
         $this->joinNamespace = $joinClassNamespace;
         $this->joinClass = $joinClass;
         $this->joinMethod = $joinMethod;
+        
+        $this->joinIsBefore = $isBefore;
+        $this->joinIsAfter = $isAfter;
+    }
+    
+    /* */
+    
+    public function isBefore()
+    {
+        return $this->joinIsBefore ? true : false;
+    }
+    
+    public function isAfter()
+    {
+        return $this->joinIsAfter ? true : false;
     }
     
     /* */

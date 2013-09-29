@@ -38,16 +38,25 @@ class ClassRewriteVisitor extends \PHPParser_NodeVisitorAbstract
 
                 // 
                 
-                $callStatements = array();
+                $callStatementsBefore = array();
+                $callStatementsAfter = array();
                 
                 foreach($this->joins[$node->name] as $join) {
-                    $callStatements[] = new \PHPParser_Node_Expr_MethodCall(
+                    $newCallStatement = new \PHPParser_Node_Expr_MethodCall(
                         new \PHPParser_Node_Expr_PropertyFetch(
                             new \PHPParser_Node_Expr_Variable('this'),
                             $join->getNameAsProperty()
                         ),
                         $join->getMethod()
                     );
+                    
+                    if ($join->isBefore()) {
+                        $callStatementsBefore[] = $newCallStatement;
+                    }
+                    
+                    if ($join->isAfter()) {
+                        $callStatementsAfter[] = $newCallStatement;
+                    }
                 }
 
                 /*
@@ -59,6 +68,7 @@ class ClassRewriteVisitor extends \PHPParser_NodeVisitorAbstract
                 $returnVariable = new \PHPParser_Node_Expr_Variable('return');
 
                 $node->stmts = array_merge(
+                    $callStatementsBefore,
                     array(
                         $this->wrapInEnclosure($node->stmts, array(), $closureUseParams),
                         new \PHPParser_Node_Expr_Assign(
@@ -68,7 +78,7 @@ class ClassRewriteVisitor extends \PHPParser_NodeVisitorAbstract
                             )
                         )
                     ),
-                    $callStatements,
+                    $callStatementsAfter,
                     array($this->makeReturn($returnVariable))
                 );
             }

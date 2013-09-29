@@ -32,13 +32,25 @@ class JoinCollection
         return $this->targetClass;
     }
     
-    public function setJoin($targetMethod, $joinClassNamespace, $joinClass, $joinMethod)
-    {
+    public function setJoin(
+        $targetMethod,
+        $joinClassNamespace,
+        $joinClass,
+        $joinMethod,
+        $isBefore,
+        $isAfter
+    ) {
         if(!isset($this->joins[$targetMethod])) {
             $this->joins[$targetMethod] = array();
         }
         
-        $this->joins[$targetMethod][] = new JoinItem($joinClassNamespace, $joinClass, $joinMethod);
+        $this->joins[$targetMethod][] = new JoinItem(
+            $joinClassNamespace,
+            $joinClass,
+            $joinMethod,
+            $isBefore,
+            $isAfter
+        );
     }
     
     public function getJoins()
