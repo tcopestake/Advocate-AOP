@@ -12,16 +12,34 @@ class AspectInstance
     /* */
     
     public function __construct(
-        $returnValue,
-        $exception,
         $className,
-        $methodName
+        $methodName,
+        $returnValue = null,
+        $exception = null
     ) {
         $this->returnValue = $returnValue;
         $this->exception = $exception;
         $this->className = $className;
         $this->methodName = $methodName;
     }
+    
+    /* */
+    
+    public function setReturnValue($value)
+    {
+        $this->returnValue = $value;
+        
+        return $this;
+    }
+    
+    public function setException($exception)
+    {
+        $this->exception = $exception;
+        
+        return $this;
+    }
+    
+    /* */
     
     public function getReturnValue()
     {
