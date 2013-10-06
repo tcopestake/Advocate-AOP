@@ -8,6 +8,7 @@ class AspectInstance
     protected $exception;
     protected $className;
     protected $methodName;
+    protected $arguments = array();
     
     /* */
     
@@ -25,6 +26,13 @@ class AspectInstance
     
     /* */
     
+    public function setArguments($arguments)
+    {
+        $this->arguments = $arguments;
+        
+        return $this;
+    }
+    
     public function setReturnValue($value)
     {
         $this->returnValue = $value;
@@ -40,6 +48,11 @@ class AspectInstance
     }
     
     /* */
+    
+    public function getArguments()
+    {
+        return $this->arguments;
+    }
     
     public function getReturnValue()
     {

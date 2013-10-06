@@ -200,8 +200,6 @@ class AOP
 
                 $classPath = $this->resolveClassPath($class);
 
-                // 
-
                 if ($classPath) {
                     $compiledClassLocation = $this->toCompiledPath($classPath);
 

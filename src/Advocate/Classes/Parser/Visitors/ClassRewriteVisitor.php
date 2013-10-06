@@ -366,6 +366,15 @@ class ClassRewriteVisitor extends \PHPParser_NodeVisitorAbstract
                     )
                 )
             ),
+            new \PHPParser_Node_Expr_MethodCall(
+                new \PHPParser_Node_Expr_Variable('aspectInstance'),
+                'setArguments',
+                array(
+                    new \PHPParser_Node_Expr_FuncCall(
+                        new \PHPParser_Node_Name('func_get_args')
+                    ),
+                )
+            )
         );
     }
     
