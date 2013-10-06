@@ -29,12 +29,12 @@ The Advocate mediator supports only partial internal autoloading, for the purpos
 
 #### Aspect mapping
 
-Aspects are currently mapped using the aop/mapping.php file, which returns arrays specifying the target class (including namespace), target method, aspect class (including namespace) and aspect method respectively. Multiple aspects and aspect methods can be mapped to any number of targets. An example of this is:
+Aspects are currently mapped using a mapping.php file, which contains arrays specifying the target class (including namespace), target method, aspect class (including namespace) and aspect method and join points respectively. Multiple aspects and aspect methods can be mapped to any number of targets. An example of this is:
 
-    array('\Models\User', 'getUsername', '\Aspects\Monitors\User', 'gotUsername'),
-    array('\Models\User', 'getUsername', '\Aspects\Monitors\Generic', 'somethingHappened'),
+    array('\Models\User', 'getUsername', '\Aspects\Monitors\User', 'gettingUsername', 'before' => true),
+    array('\Models\User', 'getUsername', '\Aspects\Monitors\Generic', 'somethingHappened', 'after' => true),
 
-Here, both `gotUsername` and `somethingHappened` will be called whenever `getUsername` is called.
+Here, `gettingUsername` will be called before - and `somethingHappened` will be called after - `getUsername` is called.
 
 #### Compilation
 
@@ -97,8 +97,9 @@ This example demonstrates the artificial environment in which the targeted metho
 
 ## Planned improvements
 
-* Passing data between aspects, such as return values and exceptions.
-* Possibly rewrite the whole thing, as the code evolved along with my changing ideas of how this should work.
+* ~~Passing data between aspects, such as return values and exceptions.~~ Addressed in 1.0
+* ~~Possibly rewrite the whole thing, as the code evolved along with my changing ideas of how this should work.~~ Addressed in 1.0
+* Replace the existing PHPParser deadlock workaround in `startUp` with something less hacky.
 
 ## Known issues
 

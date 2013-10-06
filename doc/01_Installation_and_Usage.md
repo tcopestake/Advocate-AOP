@@ -16,7 +16,7 @@ Add the following to your project's composer.json:
 and:
 
     "require": {
-        "tcopestake/advocate-aop": "*"
+        "tcopestake/advocate-aop": "1.0.*"
     },
 
 ### Manual
@@ -31,22 +31,38 @@ Note that this autoloader will only work for files within Advocate's src/ and te
 
 # Usage
 
-To initialise the AOP loader, create an instance of `\Advocate\AOP` and call the `init` method.
+#### Configuration and startup
 
-    $aop = new \Advocate\AOP('path/to/app');
-    $aop->init();
+To initialise the AOP loader, create an instance of `\Advocate\AOP`. Advocate requires three configurations for it to operate properly:
 
-It is recommended that you do this **after** your projects' autoloader(s) have already been registered.
+* A valid mapping file. This can be set using `setMapLocation`.
+* A valid storage location, for caching recompiled classes. This can be set using `setStorageDirectory`.
+* One or more class resolvers, to help Advocate locate classes on disk. A class resolver must implement the `\Advocate\Interfaces\ClassResolver\ClassResolverInterface` interface; the `resolve` method should return the file path if applicable, or `null` / `false` otherwise. See the [Laravel class resolver](https://github.com/tcopestake/Advocate-Laravel) for an example.
 
-The parameter passed to the constructor is your "working directory" i.e. where your class files, aspects and maps will reside. In a typical PHP framework, for example, this may be your "app" directory.
+Once configured, call the `startUp` method.
 
-The AOP mapper will look for your maps in "aop/mapping.php" within the specified working directory.
+Below is a complete example within a test Laravel environment (code placed in global.php)
 
-This file should return an array of maps as described in the introduction. For example:
+    (new \Advocate\AOP)
+        ->setMapLocation(app_path().'/aop/mapping.php')
+        ->setStorageDirectory(storage_path())
+        ->addClassResolver(
+            (new \Advocate\Extensions\Laravel\ClassResolver)
+                ->setComposerLoader(include(base_path().'/vendor/autoload.php'))
+        )
+        ->startUp();
+
+It is recommended that you call `startUp` only **after** your project's autoloader(s) have already been registered.
+
+#### Mapping
+
+The mapping file should return an array of maps as described in the introduction. For example:
 
     <?php
 
     return array(
-        array('\Models\User', 'getUsername', '\Aspects\Monitors\User', 'gotUsername'),
-        array('\Models\User', 'getUsername', '\Aspects\Monitors\Generic', 'somethingHappened'),
+        array('\Models\User', 'getUsername', '\Aspects\Monitors\User', 'gettingUsername', 'before' => true),
+        array('\Models\User', 'getUsername', '\Aspects\Monitors\Generic', 'somethingHappened', 'after' => true),
     );
+
+See [2. Aspect mapping](https://github.com/tcopestake/Advocate-AOP/blob/1.0/doc/02_Aspect_Mapping.md) for a more detailed explanation.

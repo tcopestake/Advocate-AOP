@@ -5,26 +5,56 @@ As demonstrated in **Installation and Usage**, example syntax for the mapping fi
     <?php
 
     return array(
-        array('\Models\User', 'getUsername', '\Aspects\Monitors\User', 'gotUsername'),
-        array('\Models\User', 'getUsername', '\Aspects\Monitors\Generic', 'somethingHappened'),
+        array(
+            '\Models\User', // Target class
+            'getUsername', // Target method
+            '\Aspects\Monitors\User', // Aspect class
+            'gettingUsername', // Aspect method
+            'before' => true // Join before true/false
+            // 'after' => true // Join after true/false
+        ),
+        array(
+            '\Models\User',
+            'getUsername',
+            '\Aspects\Monitors\Generic',
+            'somethingHappened',
+            'after' => true
+        ),
     );
 
-The four array elements are (in order): 
+The array elements are (in order): 
 
 * The target class i.e. the class to attach the aspect to.
 * The target method i.e. the method to join the aspect methods to.
 * The aspect class.
 * The aspect class' method i.e. the method to join to the target method.
 
-As demonstrated in the introduction, this mapping will join `\Aspects\Monitors\User`'s `gotUsername` and `\Aspects\Monitors\Generic`'s `somethingHappened` methods to `\Models\User`'s `getUsername` method.
+An aspect may be joined before and/or after its target. This is indicated through the before and after flags demonstrated in the above example.
 
 ### Mapping patterns
 
-It's planned for future developments to allow patterns for matching. However, the current version only supports exact name matching.
+As of version 1, it's possible to use mapping patterns. Patterns apply only to the target class and method. Currently, only wildcard matching is supported, through the use of asterisks (\*). Below are some examples.
+
+
+##### Target all methods in every class whose namespace begins with `\Models\ `
+
+        array(
+            '\Models\*',
+            '*',
+            ...
+
+##### Target all methods starting with `get` in every class
+
+        array(
+            '\*',
+            'get*',
+            ...
+
+As with AOP in general, wildcard matching should be used with caution.
 
 ## Example
 
-Below are three example classes:
+Below are two example classes:
 
 ##### \Models\User
 
@@ -34,7 +64,7 @@ Below are three example classes:
     {
         public function getUsername($user_id, &$username)
         {
-            echo 'Getting username for ID: '.$user_id.'<br>';
+            echo 'ID: '.$user_id.'<br>';
 
             $username = 'Demo User';
 
@@ -48,45 +78,44 @@ Below are three example classes:
 
     class User
     {
+        public function gettingUsername()
+        {
+            echo 'Getting a username.<br>';
+        }
+
         public function gotUsername()
         {
             echo 'Got a username.<br>';
         }
     }
 
-##### \Aspects\Monitors\Generic
-
-    namespace Aspects\Monitors;
-
-    class Generic
-    {
-        public function somethingHappened()
-        {
-            echo 'Something happened<br>';
-        }
-    }
-
 Our test initialisation code looks like this:
 
-    $aop = new \Advocate\AOP('app');
-    $aop->init();
+    $aop = (new \Advocate\AOP())
+        ->setMapLocation('app/aop/mapping.php')
+        ->setStorageDirectory('app/storage')
+        ->addClassResolver(
+            (new \Models\ClassResolver\AppClassResolver)
+                ->setWorkingDirectory('app')
+        )
+        ->startUp();
 
     $user = new \Models\User;
-    $user->getUsername(5, $user);
-    echo 'Username: '.$user;
+    $user->getUsername(5, $username);
+    echo 'Username: '.$username;
 
 Without Advocate, the expected output would be:
 
-> Getting username for ID: 5
+> ID: 5
 
 > Username: Demo User
 
 However, with Advocate active, the output is:
 
-> Getting username for ID: 5
+> Getting a username.
+
+> ID: 5
 
 > Got a username.
-
-> Something happened
 
 > Username: Demo User
