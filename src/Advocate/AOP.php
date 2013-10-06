@@ -138,6 +138,24 @@ class AOP
     
     /* */
     
+    protected function classHasJoins($class)
+    {
+        foreach ($this->joins as $join) {
+            $classPattern = $join[0];
+            
+            if(
+                $class == $classPattern
+                || $this->patternMatch($classPattern, $class)
+            ) {
+                return true;
+            }
+        }
+        
+        return false;
+    }
+    
+    /* */
+    
     public function startUp($mappingFile = null)
     {
         // Set mapping file, if applicable.
@@ -166,46 +184,59 @@ class AOP
 
         $aopAutoloader = function($class)
         {
-            // Resolve class path.
+            /* 
+             * Advocate should only attempt to resolve
+             * classes for which there are joins.
+             * 
+             * There is also an ugly workaround to avoid getting stuck
+             * in an autoload deadlock between Advocate and PHPParser.
+             * Another option would be to ensure that PHPParser is
+             * preloaded at startup.
+             * 
+             */
             
-            $classPath = $this->resolveClassPath($class);
-            
-            // 
+            if (!(substr($class, 0, 10) == 'PHPParser_') && $this->classHasJoins($class)) {
+                // Resolve class path.
 
-            if ($classPath) {
-                $compiledClassLocation = $this->toCompiledPath($classPath);
+                $classPath = $this->resolveClassPath($class);
 
-                /*
-                 * Load the compiled code if it's newer than
-                 * both the target class and the aspect map.
-                 * 
-                 */
+                // 
 
-                if(
-                    is_file($compiledClassLocation)
-                    && filemtime($compiledClassLocation) > filemtime($classPath)
-                    && filemtime($compiledClassLocation) > $this->mapLastModified
-                ) {
-                    $includePath = $compiledClassLocation;
-                } else {
-                    $code = file_get_contents($classPath);
+                if ($classPath) {
+                    $compiledClassLocation = $this->toCompiledPath($classPath);
 
-                    $this->parser->setCode($code);
+                    /*
+                     * Load the compiled code if it's newer than
+                     * both the target class and the aspect map.
+                     * 
+                     */
 
-                    // Match join points.
+                    if(
+                        is_file($compiledClassLocation)
+                        && filemtime($compiledClassLocation) > filemtime($classPath)
+                        && filemtime($compiledClassLocation) > $this->mapLastModified
+                    ) {
+                        $includePath = $compiledClassLocation;
+                    } else {
+                        $code = file_get_contents($classPath);
 
-                    $joins = $this->matchJoins($class);
+                        $this->parser->setCode($code);
+
+                        // Match join points.
+
+                        $joins = $this->matchJoins($class);
+                    }
                 }
-            }
 
-            // 
-            
-            if (isset($joins) && $joins instanceof \Advocate\Classes\Joins\JoinCollection && $joins->hasJoins()) {
-                $includePath = $this->compileJoins($compiledClassLocation, $joins);
-            }
-            
-            if (isset($includePath) && $includePath) {
-                require $includePath;
+                // 
+
+                if (isset($joins) && $joins instanceof \Advocate\Classes\Joins\JoinCollection && $joins->hasJoins()) {
+                    $includePath = $this->compileJoins($compiledClassLocation, $joins);
+                }
+
+                if (isset($includePath) && $includePath) {
+                    require $includePath;
+                }
             } else {
                 foreach($this->getAutoloaders() as $autoloader) {
                     $autoloader($class);
