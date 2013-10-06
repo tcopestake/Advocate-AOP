@@ -16,7 +16,7 @@ Add the following to your project's composer.json:
 and:
 
     "require": {
-        "tcopestake/advocate-aop": "*"
+        "tcopestake/advocate-aop": "0.5.*"
     },
 
 ### Manual
