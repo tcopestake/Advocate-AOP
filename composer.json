@@ -1,6 +1,6 @@
 {
     "name": "tcopestake/advocate-aop",
-    "description": "An experimental agnostic aspect-oriented pseudo-framework",
+    "description": "An experimental framework-agnostic environment for aspect-oriented programming in PHP.",
     "require": {
         "nikic/php-parser": "*"
     },
