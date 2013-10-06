@@ -47,7 +47,10 @@ class ClassRewriteVisitor extends \PHPParser_NodeVisitorAbstract
                             new \PHPParser_Node_Expr_Variable('this'),
                             $join->getNameAsProperty()
                         ),
-                        $join->getMethod()
+                        $join->getMethod(),
+                        array(
+                            new \PHPParser_Node_Expr_Variable('aspectInstance')
+                        )
                     );
                     
                     if ($join->isBefore()) {
@@ -66,10 +69,68 @@ class ClassRewriteVisitor extends \PHPParser_NodeVisitorAbstract
                  */
 
                 $returnVariable = new \PHPParser_Node_Expr_Variable('return');
-
-                $node->stmts = array_merge(
-                    $callStatementsBefore,
-                    array(
+                
+                if (!empty($callStatementsAfter)) {
+                    $prepareReturn = array(
+                        new \PHPParser_Node_Expr_Assign(
+                            $returnVariable,
+                            new \PHPParser_Node_Expr_ConstFetch(
+                                new \PHPParser_Node_Name('null')
+                            )
+                        )
+                    );
+                    
+                    $enclosureCode = array_merge(
+                        $this->createTryCatch(
+                            array(
+                                $this->wrapInEnclosure($node->stmts, array(), $closureUseParams),
+                                new \PHPParser_Node_Expr_Assign(
+                                    $returnVariable,
+                                    new \PHPParser_Node_Expr_FuncCall(
+                                        new \PHPParser_Node_Expr_Variable('enclosure')
+                                    )
+                                )
+                            ),
+                            array_merge(
+                                array(
+                                    new \PHPParser_Node_Expr_MethodCall(
+                                        new \PHPParser_Node_Expr_Variable('aspectInstance'),
+                                        'setReturnValue',
+                                        array(
+                                            $returnVariable
+                                        )
+                                    ),
+                                    new \PHPParser_Node_Expr_MethodCall(
+                                        new \PHPParser_Node_Expr_Variable('aspectInstance'),
+                                        'setException',
+                                        array(
+                                            new \PHPParser_Node_Expr_Variable('exception'),
+                                        )
+                                    )
+                                ),
+                                $callStatementsAfter,
+                                array(
+                                    new \PHPParser_Node_Stmt_Throw(
+                                        new \PHPParser_Node_Expr_Variable('exception')
+                                    ),
+                                )
+                            )
+                        ),
+                        array(
+                            new \PHPParser_Node_Expr_MethodCall(
+                                new \PHPParser_Node_Expr_Variable('aspectInstance'),
+                                'setReturnValue',
+                                array(
+                                    $returnVariable
+                                )
+                            ),
+                        ),
+                        $callStatementsAfter
+                    );
+                } else {
+                    $prepareReturn = array();
+                    
+                    $enclosureCode = array(
                         $this->wrapInEnclosure($node->stmts, array(), $closureUseParams),
                         new \PHPParser_Node_Expr_Assign(
                             $returnVariable,
@@ -77,8 +138,14 @@ class ClassRewriteVisitor extends \PHPParser_NodeVisitorAbstract
                                 new \PHPParser_Node_Expr_Variable('enclosure')
                             )
                         )
-                    ),
-                    $callStatementsAfter,
+                    );
+                }
+                
+                $node->stmts = array_merge(
+                    $prepareReturn,
+                    $this->createAspectInstance($node->name),
+                    $callStatementsBefore,
+                    $enclosureCode,
                     array($this->makeReturn($returnVariable))
                 );
             }
@@ -275,6 +342,46 @@ class ClassRewriteVisitor extends \PHPParser_NodeVisitorAbstract
     {
         return new \PHPParser_Node_Stmt_Return(
             $returnVariable
+        );
+    }
+    
+    protected function createAspectInstance($method)
+    {
+        return array(
+            new \PHPParser_Node_Expr_Assign(
+                new \PHPParser_Node_Expr_Variable('aspectInstance'),
+                new \PHPParser_Node_Expr_New(
+                    new \PHPParser_Node_Name('\\Advocate\\Aspects\\AspectInstance'),
+                    array(
+                        new \PHPParser_Node_Scalar_String(
+                            '\\'.implode(
+                                '\\',
+                                array(
+                                    $this->joinCollection->getTargetNamespace(),
+                                    $this->joinCollection->getTargetClass()
+                                )
+                            )
+                        ),
+                        new \PHPParser_Node_Scalar_String($method),
+                    )
+                )
+            ),
+        );
+    }
+    
+    protected function createTryCatch($try, $catch)
+    {
+        return array(
+            new \PHPParser_Node_Stmt_TryCatch(
+                $try,
+                array(
+                    new \PHPParser_Node_Stmt_Catch(
+                        new \PHPParser_Node_Name('\\Exception'),
+                        'exception',
+                        $catch
+                    ),
+                )
+            )
         );
     }
 }

@@ -6,6 +6,7 @@ class JoinCollection
 {
     protected $targetNamespace;
     protected $targetClass;
+    protected $targetMethod;
     protected $joins = array();
     
     public function setTargetNamespace($namespace)
@@ -30,6 +31,18 @@ class JoinCollection
     public function getTargetClass()
     {
         return $this->targetClass;
+    }
+    
+    public function setTargetMethod($method)
+    {
+        $this->targetMethod = $method;
+        
+        return $this;
+    }
+    
+    public function getTargetMethod()
+    {
+        return $this->targetMethod;
     }
     
     public function setJoin(
