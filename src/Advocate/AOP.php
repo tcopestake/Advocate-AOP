@@ -231,10 +231,10 @@ class AOP
                 if (isset($joins) && $joins instanceof \Advocate\Classes\Joins\JoinCollection && $joins->hasJoins()) {
                     $includePath = $this->compileJoins($compiledClassLocation, $joins);
                 }
+            }
 
-                if (isset($includePath) && $includePath) {
-                    require $includePath;
-                }
+            if (isset($includePath) && $includePath) {
+                require $includePath;
             } else {
                 foreach($this->getAutoloaders() as $autoloader) {
                     $autoloader($class);
