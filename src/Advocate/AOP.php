@@ -10,7 +10,6 @@ class AOP
     
     protected $parser;
     
-    protected $workingDirectory;
     protected $storageDirectory;
     
     protected $mapLocation;
@@ -35,20 +34,6 @@ class AOP
         return $this->storageDirectory;
     }
     
-    // 
-    
-    public function setWorkingDirectory($directory)
-    {
-        $this->workingDirectory = $directory;
-        
-        return $this;
-    }
-    
-    public function getWorkingDirectory()
-    {
-        return $this->workingDirectory;
-    }
-    
     //
     
     public function setParser($parser)
@@ -61,20 +46,13 @@ class AOP
     // 
 
     public function __construct(
-        \Advocate\Interfaces\Parser\ParserInterface $parser = null,
-        $directory = null
+        \Advocate\Interfaces\Parser\ParserInterface $parser = null
     ) {
         if (is_null($parser)) {
             $parser = new \Advocate\Classes\Parser\BasicParser;
         }
 
         $this->setParser($parser);
-        
-        // 
-        
-        if ($directory) {
-            $this->setWorkingDirectory($directory);
-        }
     }
     
     /* */
